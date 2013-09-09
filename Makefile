@@ -38,12 +38,12 @@
 
 
 # MCU name
-MCU = attiny2313a
-DUDEMCU = t2313
+MCU = atmega328p
+DUDEMCU = m328p
 
 # Main Oscillator Frequency
 # This is only used to define F_OSC in all assembler and c-sources.
-F_OSC = 8000000
+F_OSC = 16000000
 F_CPU = $(F_OSC)
 
 # Output format. (can be srec, ihex, binary)
@@ -54,7 +54,7 @@ TARGET = main
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c usart.c
+SRC = $(TARGET).c usart.c dht11.c
 
 
 # List Assembler source files here.
@@ -181,7 +181,7 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 # Type: avrdude -c ?
 # to get a full listing.
 #
-AVRDUDE_PROGRAMMER = avrisp2
+AVRDUDE_PROGRAMMER = usbasp
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
 AVRDUDE_PORT = usb    # programmer connected to serial device
@@ -189,8 +189,8 @@ AVRDUDE_PORT = usb    # programmer connected to serial device
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
 AVRDUDE_WRITE_FUSES = -U lfuse:w:0xff:m
-AVRDUDE_WRITE_FUSES += -U hfuse:w:0xdf:m
-AVRDUDE_WRITE_FUSES += -U efuse:w:0xff:m
+AVRDUDE_WRITE_FUSES += -U hfuse:w:0xda:m
+AVRDUDE_WRITE_FUSES += -U efuse:w:0x05:m
 
 
 # Uncomment the following if you want avrdude's erase cycle counter.

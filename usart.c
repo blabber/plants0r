@@ -18,14 +18,14 @@
 
 #include "usart.h"
 
-#define TRANSMIT_BUFFER_IS_EMPTY( )	(UCSRA & (1<<UDRE))
-#define TRANSMIT_BUFFER			UDR
-#define SET_TRANSMIT_MODE_8N1( )	(UCSRC |= (1<<UCSZ1) | (1<<UCSZ0))
+#define TRANSMIT_BUFFER_IS_EMPTY( )	(UCSR0A & (1<<UDRE0))
+#define TRANSMIT_BUFFER			UDR0
+#define SET_TRANSMIT_MODE_8N1( )	(UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00))
 #define SET_BAUD_RATE( )		do {				\
-						UBRRH = UBRRH_VALUE; 	\
-						UBRRL = UBRRL_VALUE;	\
+						UBRR0H = UBRRH_VALUE; 	\
+						UBRR0L = UBRRL_VALUE;	\
 					} while (0)
-#define ENABLE_TX( )			(UCSRB |= (1<<TXEN))
+#define ENABLE_TX( )			(UCSR0B |= (1<<TXEN0))
 
 void
 UA_init(void)
