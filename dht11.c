@@ -55,7 +55,7 @@ begin_communication(void)
 	 *   \_____/         \_____/         \_
 	 *
 	 *  |-- 1 --|-- 2 --|-- 3 --|-- 4 --|...
-	 * 
+	 *
 	 * 1: MCU - send start signal, pull down for at l8ms
 	 * 2: MCU - pull up, wait for DHT response (20-40us)
 	 * 3: DHT - send out response signal, low for 80us
@@ -87,7 +87,7 @@ read_byte(uint8_t *b)
 	 *   \_____/         \_____/         \_
 	 *
 	 *  |-- 1 --|-- 2 --|-- 1 --|-- 2 --|...
-	 * 
+	 *
 	 * 1: DHT - start to transmit 1-bit data (50us)
 	 * 2: DHT - pull up, 26-28us means 0, 70us means 1
 	 *
@@ -100,7 +100,7 @@ read_byte(uint8_t *b)
 
 		 /* 1: DHT - start to transmit 1-bit data (50us) */
 		while (!(DHT_PIN & DHT));
-		
+
 		 /* 2: DHT - pull up, 26-28us means 0, 70us means 1 */
 		_delay_us(30);
 		if (DHT_PIN & DHT)

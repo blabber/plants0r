@@ -20,7 +20,7 @@
 int
 main(void)
 {
-	UA_init();	
+	UA_init();
 
 	DDRB |= LED;
 

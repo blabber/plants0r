@@ -48,7 +48,7 @@ void
 UA_puts(char *s)
 {
 	char *l = s;
-	
+
 	while (*l != '\0')
 		UA_putc(l++);
 }
