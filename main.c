@@ -6,15 +6,41 @@
  *                                                             Tobias Rehbein
  */
 
+#include <stdio.h>
+#include <avr/io.h>
+#include <util/delay.h>
+
 #include "usart.h"
+#include "dht11.h"
+
+#define BUFFLEN 32
+
+#define LED (1<<PB5)
 
 int
 main(void)
 {
 	UA_init();	
 
+	DDRB |= LED;
+
+	DHT_init();
+
 	for (;;) {
-		UA_puts("Alive and kicking!\r\n");
+		struct DHT_data dht;
+		if (!DHT_read(&dht)) {
+			PORTB |= LED;
+			UA_puts("failed reading: ");
+		} else {
+			PORTB &= ~(LED);
+		}
+
+		char buffer[BUFFLEN];
+		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%dDegC\r\n",
+		    dht.humidity_integral, dht.humidity_decimal,
+		    dht.temperature_integral, dht.temperature_decimal);
+
+		UA_puts(buffer);
 	}
 
 	/* NOTREACHED */
