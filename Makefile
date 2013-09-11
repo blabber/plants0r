@@ -54,7 +54,7 @@ TARGET = main
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c usart.c dht11.c
+SRC = $(TARGET).c usart.c dht11.c buffer.c
 
 
 # List Assembler source files here.

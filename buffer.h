@@ -6,13 +6,15 @@
  *                                                             Tobias Rehbein
  */
 
-#ifndef _USART_H_
-#define _USART_H_
+#ifndef _BUFFER_H_
+#define _BUFFER_H_
 
-#include <avr/io.h>
+#include <stdint.h>
 
-void UA_init(void);
-void UA_putc(uint8_t c);
-void UA_puts(char *s);
+struct buffer;
+
+struct buffer *buf_create(uint8_t size);
+int8_t buf_putc(struct buffer *b, uint8_t c);
+int8_t buf_getc(struct buffer *b, uint8_t *c);
 
 #endif

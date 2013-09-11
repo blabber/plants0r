@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <avr/io.h>
-#include <util/delay.h>
+#include <avr/interrupt.h>
 
 #include "usart.h"
 #include "dht11.h"
@@ -20,12 +20,12 @@
 int
 main(void)
 {
-	UA_init();
-
 	DDRB |= LED;
 
+	UA_init();
 	DHT_init();
 
+	sei();
 	for (;;) {
 		struct DHT_data dht;
 		if (!DHT_read(&dht)) {
