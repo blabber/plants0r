@@ -29,7 +29,8 @@
 						UBRR0L = UBRRL_VALUE;	\
 					} while (0)
 #define ENABLE_TX( )			(UCSR0B |= (1<<TXEN0))
-#define ENABLE_TX_COMPLETE_IRQ( )	(UCSR0B |= (1<<TXCIE0))
+#define ENABLE_TX_BUFFER_READY_IRQ( )	(UCSR0B |= (1<<UDRIE0))
+#define DISABLE_TX_BUFFER_READY_IRQ( )	(UCSR0B &= ~(1<<UDRIE0))
 
 #define BUFFLEN	32
 
@@ -41,7 +42,6 @@ UA_init(void)
 	ENABLE_TX();
 	SET_TRANSMIT_MODE_8N1();
 	SET_BAUD_RATE();
-	ENABLE_TX_COMPLETE_IRQ();
 
 	buff = buf_create(BUFFLEN);
 }
@@ -51,10 +51,7 @@ UA_putc(uint8_t c)
 {
 	while (buf_putc(buff, c) != 0);
 
-	if (IS_TX_BUFFER_READY()) {
-		if (buf_getc(buff, &c) == 0)
-			TX_BUFFER = c;
-	}
+	ENABLE_TX_BUFFER_READY_IRQ();
 }
 
 void
@@ -66,9 +63,11 @@ UA_puts(char *s)
 		UA_putc(*(l++));
 }
 
-ISR(USART_TX_vect)
+ISR(USART_UDRE_vect)
 {
 	uint8_t c;
 	if (buf_getc(buff, &c) == 0)
 		TX_BUFFER = c;
+	else
+		DISABLE_TX_BUFFER_READY_IRQ();
 }
