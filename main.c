@@ -28,7 +28,7 @@ main(void)
 	sei();
 	for (;;) {
 		struct DHT_data dht;
-		if (!DHT_read(&dht)) {
+		if (DHT_read(&dht) != 0) {
 			PORTB |= LED;
 			UA_puts("failed reading: ");
 		} else {
