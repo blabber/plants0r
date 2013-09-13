@@ -119,10 +119,9 @@ cksum_is_valid(struct DHT_data *data, uint8_t cksum)
 	 * bit of the sum of all four datapoints read.
 	 */
 
-	uint16_t sum = data->humidity_integral + data->humidity_decimal +
-	    data->temperature_integral + data->temperature_decimal;
-
-	if (cksum != (sum & 0x00ff))
+	if (((data->humidity_integral + data->humidity_decimal +
+	    data->temperature_integral + data->temperature_decimal) & 0xff)
+	    != cksum)
 		return (false);
 
 	return (true);
