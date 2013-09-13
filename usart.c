@@ -22,7 +22,6 @@
 #include "buffer.h"
 
 #define TX_BUFFER			UDR0
-#define IS_TX_BUFFER_READY( )		(UCSR0A & (1<<UDRE0))
 #define SET_TRANSMIT_MODE_8N1( )	(UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00))
 #define SET_BAUD_RATE( )		do {				\
 						UBRR0H = UBRRH_VALUE; 	\
@@ -58,7 +57,6 @@ void
 UA_puts(char *s)
 {
 	char *l = s;
-
 	while (*l != '\0')
 		UA_putc(*(l++));
 }
