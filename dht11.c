@@ -23,7 +23,7 @@ DHT_init(void)
 {
 	DHT_DDR |= DHT;
 	DHT_PORT |= DHT;
-	_delay_ms(2000);
+	_delay_ms(1000);
 }
 
 int8_t
@@ -68,8 +68,10 @@ begin_communication(void)
 	_delay_ms(20);
 
 	/* 2: MCU - pull up, wait for DHT response (20-40us) */
-	DHT_DDR &= ~(DHT);	/* pull-up-resistor pulls line up */
-	_delay_us(5);		/* give line some time to reach high state */
+	DHT_PORT |= DHT;
+	DHT_DDR &= ~(DHT);
+	DHT_PORT &= ~(DHT);
+	/* external pull-up-resistor keeps line up */
 	while (DHT_PIN & DHT);
 
 	/* 3: DHT - send out response signal, low for 80us */
@@ -120,7 +122,7 @@ cksum_is_valid(struct DHT_data *data, uint8_t cksum)
 	uint16_t sum = data->humidity_integral + data->humidity_decimal +
 	    data->temperature_integral + data->temperature_decimal;
 
-	if (cksum != (sum & 0xff))
+	if (cksum != (sum & 0x00ff))
 		return (false);
 
 	return (true);
