@@ -181,16 +181,17 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 # Type: avrdude -c ?
 # to get a full listing.
 #
-AVRDUDE_PROGRAMMER = usbasp
+AVRDUDE_PROGRAMMER = arduino
+AVRDUDE_FLAGS += -b 57600
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
-AVRDUDE_PORT = usb    # programmer connected to serial device
+AVRDUDE_PORT = /dev/ttyU0 # programmer connected to serial device
 
 AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 #AVRDUDE_WRITE_EEPROM = -U eeprom:w:$(TARGET).eep
-AVRDUDE_WRITE_FUSES = -U lfuse:w:0xff:m
-AVRDUDE_WRITE_FUSES += -U hfuse:w:0xda:m
-AVRDUDE_WRITE_FUSES += -U efuse:w:0x05:m
+#AVRDUDE_WRITE_FUSES = -U lfuse:w:0xff:m
+#AVRDUDE_WRITE_FUSES += -U hfuse:w:0xda:m
+#AVRDUDE_WRITE_FUSES += -U efuse:w:0x05:m
 
 
 # Uncomment the following if you want avrdude's erase cycle counter.
@@ -207,7 +208,7 @@ AVRDUDE_WRITE_FUSES += -U efuse:w:0x05:m
 # to submit bug reports.
 #AVRDUDE_VERBOSE = -v -v
 
-AVRDUDE_FLAGS = -B 4 -p $(DUDEMCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER)
+AVRDUDE_FLAGS += -p $(DUDEMCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER)
 AVRDUDE_FLAGS += $(AVRDUDE_NO_VERIFY)
 AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
 AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
