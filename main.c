@@ -36,7 +36,7 @@ main(void)
 		}
 
 		char buffer[BUFFLEN];
-		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%dDegC\r\n",
+		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
 		    dht.humidity_integral, dht.humidity_decimal,
 		    dht.temperature_integral, dht.temperature_decimal);
 
