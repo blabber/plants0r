@@ -21,28 +21,16 @@
 #include "usart.h"
 #include "buffer.h"
 
-#define TX_BUFFER			UDR0
-#define SET_TRANSMIT_MODE_8N1( )	(UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00))
-#define SET_BAUD_RATE( )		do {				\
-						UBRR0H = UBRRH_VALUE; 	\
-						UBRR0L = UBRRL_VALUE;	\
-					} while (0)
-#define ENABLE_TX( )			(UCSR0B |= (1<<TXEN0))
-#define ENABLE_TX_BUFFER_READY_IRQ( )	(UCSR0B |= (1<<UDRIE0))
-#define DISABLE_TX_BUFFER_READY_IRQ( )	(UCSR0B &= ~(1<<UDRIE0))
-
-#define BUFFLEN	32
-
 struct buffer *buff;
 
 void
 UA_init(void)
 {
-	ENABLE_TX();
-	SET_TRANSMIT_MODE_8N1();
-	SET_BAUD_RATE();
+	UA_ENABLE_TX();
+	UA_SET_TRANSMIT_MODE_8N1();
+	UA_SET_BAUD_RATE();
 
-	buff = buf_create(BUFFLEN);
+	buff = buf_create(UA_BUFFLEN);
 }
 
 void
@@ -50,7 +38,7 @@ UA_putc(uint8_t c)
 {
 	while (buf_putc(buff, c) != 0);
 
-	ENABLE_TX_BUFFER_READY_IRQ();
+	UA_ENABLE_TX_BUFF_READY_IRQ();
 }
 
 void
@@ -65,7 +53,7 @@ ISR(USART_UDRE_vect)
 {
 	uint8_t c;
 	if (buf_getc(buff, &c) == 0)
-		TX_BUFFER = c;
+		UA_TX_BUFF = c;
 	else
-		DISABLE_TX_BUFFER_READY_IRQ();
+		UA_DISABLE_TX_BUFF_READY_IRQ();
 }
