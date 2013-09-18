@@ -22,10 +22,11 @@ main(void)
 {
 	DDRB |= LED;
 
+	sei();
+
 	UA_init();
 	DHT_init();
 
-	sei();
 	for (;;) {
 		struct DHT_data dht;
 		if (DHT_read(&dht) != 0) {
