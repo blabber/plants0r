@@ -36,7 +36,8 @@ UA_init(void)
 void
 UA_putc(uint8_t c)
 {
-	while (buf_putc(buff, c) != 0);
+	while (buf_putc(buff, c) != 0)
+		/* nop */;
 
 	UA_ENABLE_TX_BUFF_READY_IRQ();
 }
