@@ -11,16 +11,19 @@
 
 #include <avr/io.h>
 
-#define UA_TX_BUFF	UDR0
-#define UA_SET_TRANSMIT_MODE_8N1( )     (UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00))
-#define UA_ENABLE_TX( )                 (UCSR0B |= (1<<TXEN0))
-#define UA_ENABLE_TX_BUFF_READY_IRQ( )  (UCSR0B |= (1<<UDRIE0))
-#define UA_DISABLE_TX_BUFF_READY_IRQ( ) (UCSR0B &= ~(1<<UDRIE0))
-#define UA_SET_BAUD_RATE( )             do {                            \
-                                                UBRR0H = UBRRH_VALUE;   \
-                                                UBRR0L = UBRRL_VALUE;   \
-                                        } while (0)
-#define UA_BUFFLEN			32
+#define UA_BAUD		9600
+#define UA_BUFFLEN	32
+
+#define UA_TX_BUFF			UDR0
+#define UA_SET_TRANSMIT_MODE_8N1( )	(UCSR0C |= (1<<UCSZ01) | (1<<UCSZ00))
+#define UA_ENABLE_TX( )			(UCSR0B |= (1<<TXEN0))
+#define UA_ENABLE_TX_BUFF_READY_IRQ( )	(UCSR0B |= (1<<UDRIE0))
+#define UA_DISABLE_TX_BUFF_READY_IRQ( )	(UCSR0B &= ~(1<<UDRIE0))
+#define UA_SET_BAUD_RATE( )		do {                            \
+						UBRR0H = UBRRH_VALUE;   \
+						UBRR0L = UBRRL_VALUE;   \
+					} while (0)
+
 
 
 void UA_init(void);

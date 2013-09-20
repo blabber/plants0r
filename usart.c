@@ -12,14 +12,14 @@
  * 8N1 @ 9600bd
  */
 
-#define BAUD	9600
-
 #include <stdint.h>
 #include <avr/interrupt.h>
-#include <util/setbaud.h>
 
 #include "usart.h"
 #include "buffer.h"
+
+#define BAUD	UA_BAUD
+#include <util/setbaud.h>
 
 struct buffer *buff;
 
