@@ -6,6 +6,7 @@
  *                                                             Tobias Rehbein
  */
 
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
@@ -50,21 +51,24 @@ enum states {
 	RESPONSE_RECEIVED2,
 	RESPONSE_WAITING3,
 	RESPONSE_RECEIVED3,
+	READ_WAIT,
 	READ_WAITING,
+	READ_RECEIVE,
 	READ_RECEIVING,
 	READ_RECEIVED,
+	CHECKSUM,
 	RECOVER,
 	RECOVERING,
 	RECOVERED,
 };
 
-static void begin_communication(void);
-static void read_byte(uint8_t *b);
-static bool cksum_is_valid(struct DHT_data *data, uint8_t cksum);
-static void stop_communication(void);
 static enum states handle_state_updates(void);
 
 volatile enum states state = UNINITIALIZED;
+
+static struct DHT_data *dht_data;
+static uint8_t read_bits = 0;
+static uint8_t cksum = 0;
 
 void
 DHT_init(void)
@@ -79,6 +83,8 @@ DHT_init(void)
 static enum states
 handle_state_updates(void)
 {
+	uint8_t *b = NULL;
+
 	switch(state) {
 	case UNINITIALIZED:
 		break;
@@ -166,10 +172,71 @@ handle_state_updates(void)
 	case RESPONSE_WAITING3:
 		break;
 
-	ase RESPONSE_RECEIVED3:
+	case RESPONSE_RECEIVED3:
 		DHT_DISABLE_INT_FALL_IRQ();
 
+		state = READ_WAIT;
+		break;
+
+	case READ_WAIT:
+		DHT_ENABLE_INT_RISE_IRQ();
+
 		state = READ_WAITING;
+		break;
+
+	case READ_WAITING:
+		break;
+
+	case READ_RECEIVE:
+		DHT_DISABLE_INT_RISE_IRQ();
+
+		DHT_ENABLE_INT_FALL_IRQ();
+		DHT_TCNT = 0;
+		DHT_START_TIMER_US();
+
+		state = READ_RECEIVING;
+		break;
+
+	case READ_RECEIVING:
+		break;
+
+	case READ_RECEIVED:
+		DHT_STOP_TIMER_US();
+		DHT_DISABLE_INT_FALL_IRQ();
+
+		if (read_bits < 8)
+			b = &(dht_data->humidity_integral);
+		else if (read_bits < 16)
+			b = &(dht_data->humidity_decimal);
+		else if (read_bits < 24)
+			b = &(dht_data->temperature_integral);
+		else if (read_bits < 32)
+			b = &(dht_data->temperature_decimal);
+		else if (read_bits < 40)
+			b = &cksum;
+
+		*b <<= 1;
+		 /* 2: DHT - pull up, 26-28us means 0, 70us means 1 */
+		if (DHT_TCNT >= DHT_TICKS_PER_US * 50)
+			*b |= (0x01);
+
+		if (++read_bits < 40)
+			state = READ_WAIT;
+		else
+			state = CHECKSUM;
+		break;
+	case CHECKSUM:
+		/*
+		 * If the data transmission was successful, the checksum will be
+		 * the last 8 bit of the sum of all four datapoints read.
+		 */
+
+		if (((dht_data->humidity_integral + dht_data->humidity_decimal +
+		    dht_data->temperature_integral +
+		    dht_data->temperature_decimal) & 0xff) == cksum)
+			dht_data->valid_reading = 1;
+
+		state = RECOVER;
 		break;
 
 	default:
@@ -188,94 +255,22 @@ DHT_read(struct DHT_data *data)
 	if (state != IDLE)
 		return (-1);
 
+	data->humidity_integral = 0;
+	data->humidity_decimal = 0;
+	data->temperature_integral = 0;
+	data->temperature_decimal = 0;
+	data->valid_reading = 0;
+	cksum = 0;
+	read_bits = 0;
+
+	dht_data = data;
+
 	state = START_SEND;
-
-	while (handle_state_updates() != READ_WAITING);
-		/* nop */
-
-	read_byte(&(data->humidity_integral));
-	read_byte(&(data->humidity_decimal));
-	read_byte(&(data->temperature_integral));
-	read_byte(&(data->temperature_decimal));
-
-	uint8_t cksum;
-	read_byte(&cksum);
-
-	stop_communication();
-
-	if (!cksum_is_valid(data, cksum))
-		return (-1);
-
-	return (0);
-}
-
-static void
-read_byte(uint8_t *b)
-{
-
-	for (uint8_t i = 0; i < 8; i++) {
-		/* shift to next bit position */
-		*b <<= 1;
-
-		 /* 1: DHT - start to transmit 1-bit data (50us) */
-		state = READ_WAITING;
-
-		DHT_ENABLE_INT_RISE_IRQ();
-
-		while (state != READ_RECEIVING)
-			/* nop */;
-
-		DHT_DISABLE_INT_RISE_IRQ();
-		DHT_ENABLE_INT_FALL_IRQ();
-		DHT_TCNT = 0;
-		DHT_START_TIMER_US();
-
-		while (state != READ_RECEIVED)
-			/* nop */;
-
-		uint16_t time = DHT_TCNT;
-		DHT_STOP_TIMER_US();
-		DHT_DISABLE_INT_FALL_IRQ();
-
-		 /* 2: DHT - pull up, 26-28us means 0, 70us means 1 */
-		if (time >= DHT_TICKS_PER_US * 50)
-			*b |= (0x01);
-		else
-			*b &= ~(0x01);
-	}
-}
-
-static bool
-cksum_is_valid(struct DHT_data *data, uint8_t cksum)
-{
-	/*
-	 * If the data transmission was successful, the checksum will be the last 8
-	 * bit of the sum of all four datapoints read.
-	 */
-
-	if (((data->humidity_integral + data->humidity_decimal +
-	    data->temperature_integral + data->temperature_decimal) & 0xff)
-	    != cksum)
-		return (false);
-
-	return (true);
-}
-
-static void stop_communication(void)
-{
-	state = RECOVERING;
-
-	/* pull up data line for at least 1 sec */
-	DHT_DDR |= DHT;
-	DHT_PORT |= DHT;
-
-	DHT_TCNT = 0;
-	DHT_OCR = DHT_TICKS_PER_SEC;
-	DHT_ENABLE_OCR_IRQ();
-	DHT_START_TIMER_SEC();
 
 	while (handle_state_updates() != IDLE)
 		/* nop */;
+
+	return (dht_data->valid_reading);
 }
 
 ISR(DHT_ISR_OCR_VECTOR)
@@ -308,7 +303,7 @@ ISR(DHT_ISR_INT_VECTOR)
 		state = RESPONSE_RECEIVED3;
 		break;
 	case READ_WAITING:
-		state = READ_RECEIVING;
+		state = READ_RECEIVE;
 		break;
 	case READ_RECEIVING:
 		state = READ_RECEIVED;

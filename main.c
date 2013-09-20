@@ -29,7 +29,7 @@ main(void)
 
 	for (;;) {
 		struct DHT_data dht;
-		if (DHT_read(&dht) != 0) {
+		if (DHT_read(&dht) == 0) {
 			PORTB |= LED;
 			UA_puts("failed reading: ");
 		} else {
