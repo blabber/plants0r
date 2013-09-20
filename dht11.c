@@ -97,7 +97,7 @@ enum states {
 
 static enum states handle_state_updates(void);
 
-volatile enum states state = UNINITIALIZED;
+volatile static enum states state = UNINITIALIZED;
 
 static struct DHT_data *dht_data;
 static uint8_t read_bits = 0;
