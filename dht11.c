@@ -12,10 +12,36 @@
 
 #include "dht11.h"
 
+/*
+ * -.       .-------.       .-------.
+ *   \_____/         \_____/         \_
+ *
+ *  |-- 1 --|-- 2 --|-- 3 --|-- 4 --|...
+ *
+ * 1: MCU - send start signal, pull down for at l8ms
+ * 2: MCU - pull up, wait for DHT response (20-40us)
+ * 3: DHT - send out response signal, low for 80us
+ * 4: DHT - pulls up for 80us
+ *
+ *
+ * -.       .-------.       .-------.
+ *   \_____/         \_____/         \_
+ *
+ *  |-- 1 --|-- 2 --|-- 1 --|-- 2 --|...
+ *
+ * 1: DHT - start to transmit 1-bit data (50us)
+ * 2: DHT - pull up, 26-28us means 0, 70us means 1
+ *
+ * (repeat for the other bits)
+ */
+
 enum states {
 	UNINITIALIZED,
+	INITIALIZE,
 	INITIALIZING,
+	INITIALIZED,
 	IDLE,
+	START_SEND,
 	START_SENDING,
 	START_SENT,
 	RESPONSE_WAITING1,
@@ -27,13 +53,16 @@ enum states {
 	READ_WAITING,
 	READ_RECEIVING,
 	READ_RECEIVED,
+	RECOVER,
 	RECOVERING,
+	RECOVERED,
 };
 
 static void begin_communication(void);
 static void read_byte(uint8_t *b);
 static bool cksum_is_valid(struct DHT_data *data, uint8_t cksum);
 static void stop_communication(void);
+static enum states handle_state_updates(void);
 
 volatile enum states state = UNINITIALIZED;
 
@@ -42,23 +71,116 @@ DHT_init(void)
 {
 	if (state != UNINITIALIZED)
 		return;
-	state = INITIALIZING;
+	state = INITIALIZE;
 
-	/* pull up data line for at least 1 sec */
-	DHT_DDR |= DHT;
-	DHT_PORT |= DHT;
-
-	DHT_TCNT = 0;
-	DHT_OCR = DHT_TICKS_PER_SEC;
-	DHT_ENABLE_OCR_IRQ();
-	DHT_START_TIMER_SEC();
-
-	while (state != IDLE)
-		/* nop */;
-
-	DHT_DISABLE_OCR_IRQ();
-	DHT_STOP_TIMER_SEC();
+	while ( handle_state_updates() != IDLE);
 }
+
+static enum states
+handle_state_updates(void)
+{
+	switch(state) {
+	case UNINITIALIZED:
+		break;
+
+	case INITIALIZE:
+	case RECOVER:
+		/* pull up data line for at least 1 sec */
+		DHT_DDR |= DHT;
+		DHT_PORT |= DHT;
+
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_SEC;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_SEC();
+
+		if (state == INITIALIZE)
+			state = INITIALIZING;
+		else
+			state = RECOVERING;
+		break;
+
+	case INITIALIZING:
+	case RECOVERING:
+		break;
+
+	case INITIALIZED:
+	case RECOVERED:
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_SEC();
+
+		state = IDLE;
+		break;
+
+	case START_SEND:
+		/* 1: MCU - send start signal, pull down for at l8ms */
+		DHT_DDR |= DHT;
+		DHT_PORT &= ~(DHT);
+
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_MS * 20;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_MS();
+
+		state = START_SENDING;
+		break;
+
+	case START_SENDING:
+		break;
+
+	case START_SENT:
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_MS();
+
+		/* 2: MCU - pull up, wait for DHT response (20-40us) */
+		DHT_DDR &= ~(DHT); /* external pull-up-resistor keeps line up */
+		DHT_ENABLE_INT_FALL_IRQ();
+
+		state = RESPONSE_WAITING1;
+		break;
+
+	case RESPONSE_WAITING1:
+		break;
+
+	case RESPONSE_RECEIVED1:
+		DHT_DISABLE_INT_FALL_IRQ();
+
+		/* 3: DHT - send out response signal, low for 80us */
+		DHT_ENABLE_INT_RISE_IRQ();
+
+		state = RESPONSE_WAITING2;
+		break;
+
+	case RESPONSE_WAITING2:
+		break;
+
+	case RESPONSE_RECEIVED2:
+		DHT_DISABLE_INT_RISE_IRQ();
+
+		/* 4: DHT - pulls up for 80us */
+		DHT_ENABLE_INT_FALL_IRQ();
+
+		state = RESPONSE_WAITING3;
+		break;
+
+	case RESPONSE_WAITING3:
+		break;
+
+	ase RESPONSE_RECEIVED3:
+		DHT_DISABLE_INT_FALL_IRQ();
+
+		state = READ_WAITING;
+		break;
+
+	default:
+		/* TODO muss weg */
+		break;
+	}
+
+	return (state);
+}
+
+
 
 int8_t
 DHT_read(struct DHT_data *data)
@@ -66,7 +188,10 @@ DHT_read(struct DHT_data *data)
 	if (state != IDLE)
 		return (-1);
 
-	begin_communication();
+	state = START_SEND;
+
+	while (handle_state_updates() != READ_WAITING);
+		/* nop */
 
 	read_byte(&(data->humidity_integral));
 	read_byte(&(data->humidity_decimal));
@@ -85,82 +210,8 @@ DHT_read(struct DHT_data *data)
 }
 
 static void
-begin_communication(void)
-{
-	/*
-	 * -.       .-------.       .-------.
-	 *   \_____/         \_____/         \_
-	 *
-	 *  |-- 1 --|-- 2 --|-- 3 --|-- 4 --|...
-	 *
-	 * 1: MCU - send start signal, pull down for at l8ms
-	 * 2: MCU - pull up, wait for DHT response (20-40us)
-	 * 3: DHT - send out response signal, low for 80us
-	 * 4: DHT - pulls up for 80us
-	 */
-
-	state = START_SENDING;
-
-	/* 1: MCU - send start signal, pull down for at l8ms */
-	DHT_DDR |= DHT;
-	DHT_PORT &= ~(DHT);
-
-	DHT_TCNT = 0;
-	DHT_OCR = DHT_TICKS_PER_MS * 20;
-	DHT_ENABLE_OCR_IRQ();
-	DHT_START_TIMER_MS();
-
-	while (state != START_SENT)
-		/* nope */;
-
-	DHT_DISABLE_OCR_IRQ();
-	DHT_STOP_TIMER_MS();
-
-	/* 2: MCU - pull up, wait for DHT response (20-40us) */
-	DHT_DDR &= ~(DHT);
-	/* external pull-up-resistor keeps line up */
-
-	state = RESPONSE_WAITING1;
-	DHT_ENABLE_INT_FALL_IRQ();
-
-	while (state != RESPONSE_RECEIVED1)
-		/* nop */;
-
-	DHT_DISABLE_INT_FALL_IRQ();
-	state = RESPONSE_WAITING2;
-
-	/* 3: DHT - send out response signal, low for 80us */
-	DHT_ENABLE_INT_RISE_IRQ();
-
-	while (state != RESPONSE_RECEIVED2)
-		/* nop */;
-
-	DHT_DISABLE_INT_RISE_IRQ();
-	state = RESPONSE_WAITING3;
-
-	/* 4: DHT - pulls up for 80us */
-	DHT_ENABLE_INT_FALL_IRQ();
-
-	while (state != RESPONSE_RECEIVED3)
-		/* nop */;
-
-	DHT_DISABLE_INT_FALL_IRQ();
-}
-
-static void
 read_byte(uint8_t *b)
 {
-	/*
-	 * -.       .-------.       .-------.
-	 *   \_____/         \_____/         \_
-	 *
-	 *  |-- 1 --|-- 2 --|-- 1 --|-- 2 --|...
-	 *
-	 * 1: DHT - start to transmit 1-bit data (50us)
-	 * 2: DHT - pull up, 26-28us means 0, 70us means 1
-	 *
-	 * (repeat for the other bits)
-	 */
 
 	for (uint8_t i = 0; i < 8; i++) {
 		/* shift to next bit position */
@@ -223,19 +274,18 @@ static void stop_communication(void)
 	DHT_ENABLE_OCR_IRQ();
 	DHT_START_TIMER_SEC();
 
-	while (state != IDLE)
+	while (handle_state_updates() != IDLE)
 		/* nop */;
-
-	DHT_DISABLE_OCR_IRQ();
-	DHT_STOP_TIMER_SEC();
 }
 
 ISR(DHT_ISR_OCR_VECTOR)
 {
 	switch (state) {
 	case INITIALIZING:
+		state = INITIALIZED;
+		break;
 	case RECOVERING:
-		state = IDLE;
+		state = RECOVERED;
 		break;
 	case START_SENDING:
 		state = START_SENT;
