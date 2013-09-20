@@ -24,24 +24,33 @@ main(void)
 
 	sei();
 
-	UA_init();
 	DHT_init();
+	UA_init();
 
+	while (DHT_get_state() != DHT_IDLE)
+		/* nop */;
+
+	struct DHT_data dht;
+
+	DHT_read(&dht);
 	for (;;) {
-		struct DHT_data dht;
-		if (DHT_read(&dht) == 0) {
-			PORTB |= LED;
-			UA_puts("failed reading: ");
-		} else {
-			PORTB &= ~(LED);
+		if (DHT_get_state() == DHT_IDLE) {
+			if (dht.valid_reading)
+				PORTB &= ~(LED);
+			else {
+				PORTB |= LED;
+				UA_puts("failed reading: ");
+			}
+
+			char buffer[BUFFLEN];
+			snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
+			    dht.humidity_integral, dht.humidity_decimal,
+			    dht.temperature_integral, dht.temperature_decimal);
+
+			UA_puts(buffer);
+
+			DHT_read(&dht);
 		}
-
-		char buffer[BUFFLEN];
-		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
-		    dht.humidity_integral, dht.humidity_decimal,
-		    dht.temperature_integral, dht.temperature_decimal);
-
-		UA_puts(buffer);
 	}
 
 	/* NOTREACHED */

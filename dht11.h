@@ -59,6 +59,12 @@
 						EIMSK &= ~(1<<INT0);	\
 					} while (0)
 
+enum DHT_states {
+	DHT_UNINITIALIZED,
+	DHT_BUSY,
+	DHT_IDLE,
+};
+
 struct DHT_data {
 	uint8_t humidity_integral;
 	uint8_t humidity_decimal;
@@ -68,6 +74,7 @@ struct DHT_data {
 };
 
 void DHT_init(void);
-int8_t DHT_read(struct DHT_data *data);
+void DHT_read(struct DHT_data *data);
+enum DHT_states DHT_get_state(void);
 
 #endif

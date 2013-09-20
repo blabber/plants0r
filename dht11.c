@@ -14,26 +14,59 @@
 #include "dht11.h"
 
 /*
+ *   .----------------------------------
+ * _/
+ *
+ *  |-- 1 -------------|-- 2 -----------
+ *
+ * 1: MCU - Pull up data for at least one second
+ *    (INITIALZE -> INITIALIZING -> INITIALIZED)
+ * 2: MCU - Idle
+ *    (IDLE)
+ *
+ *
  * -.       .-------.       .-------.
  *   \_____/         \_____/         \_
  *
- *  |-- 1 --|-- 2 --|-- 3 --|-- 4 --|...
+ *  |-- 3 --|-- 4 --|-- 5 --|-- 6 --|...
  *
- * 1: MCU - send start signal, pull down for at l8ms
- * 2: MCU - pull up, wait for DHT response (20-40us)
- * 3: DHT - send out response signal, low for 80us
- * 4: DHT - pulls up for 80us
+ * 3: MCU - send start signal, pull down for at least 18ms
+ *    (START_SEND -> START_SENDING -> START_SENT)
+ * 4: MCU - pull up, wait for DHT response (20-40us)
+ *    (START_SENT -> RESPONSE_WAITING1 -> RESPONSE_RECEIVED1)
+ * 5: DHT - send out response signal, low for 80us
+ *    (RESPONSE_RECEIVED1 -> RESPONSE_WAITING2 -> RESPONSE_RECEIVED2)
+ * 6: DHT - pulls up for 80us
+ *    (RESPONSE_RECEIVED2 -> RESPONSE_WAITING3 -> RESPONSE_RECEIVED3)
  *
  *
  * -.       .-------.       .-------.
  *   \_____/         \_____/         \_
  *
- *  |-- 1 --|-- 2 --|-- 1 --|-- 2 --|...
+ *  |-- 7 --|-- 8 --|-- 7 --|-- 8 --|...
  *
- * 1: DHT - start to transmit 1-bit data (50us)
- * 2: DHT - pull up, 26-28us means 0, 70us means 1
+ * 7: DHT - start to transmit 1-bit data (50us)
+ *    (READ_WAIT -> READ_WAITING)
+ * 8: DHT - pull up, 26-28us means 0, 70us means 1
+ *    (READ_RECEIVE -> READ_RECEIVING -> READ_RECEIVED)
  *
  * (repeat for the other bits)
+ *
+ *
+ * X: Not part of communication protocol - calculate checksum
+ *    (CHECKSUM)
+ *
+ *
+ *   .----------------------------------
+ * _/
+ *
+ *  |-- 1 -------------|-- 2 -----------
+ *
+ * 1: MCU - Keep up data for at least one second
+ *    (RECOVER -> RECOVERING -> RECOVERED)
+ * 2: MCU - Idle
+ *    (IDLE)
+ *
  */
 
 enum states {
@@ -76,8 +109,6 @@ DHT_init(void)
 	if (state != UNINITIALIZED)
 		return;
 	state = INITIALIZE;
-
-	while ( handle_state_updates() != IDLE);
 }
 
 static enum states
@@ -91,7 +122,7 @@ handle_state_updates(void)
 
 	case INITIALIZE:
 	case RECOVER:
-		/* pull up data line for at least 1 sec */
+		/* 1: MCU - Pull up data for at least one second */
 		DHT_DDR |= DHT;
 		DHT_PORT |= DHT;
 
@@ -118,8 +149,12 @@ handle_state_updates(void)
 		state = IDLE;
 		break;
 
+	case IDLE:
+		/* 2: MCU - Idle */
+		break;
+
 	case START_SEND:
-		/* 1: MCU - send start signal, pull down for at l8ms */
+		/* 3: MCU - send start signal, pull down for at least 18ms */
 		DHT_DDR |= DHT;
 		DHT_PORT &= ~(DHT);
 
@@ -138,7 +173,7 @@ handle_state_updates(void)
 		DHT_DISABLE_OCR_IRQ();
 		DHT_STOP_TIMER_MS();
 
-		/* 2: MCU - pull up, wait for DHT response (20-40us) */
+		/* 4: MCU - pull up, wait for DHT response (20-40us) */
 		DHT_DDR &= ~(DHT); /* external pull-up-resistor keeps line up */
 		DHT_ENABLE_INT_FALL_IRQ();
 
@@ -151,7 +186,7 @@ handle_state_updates(void)
 	case RESPONSE_RECEIVED1:
 		DHT_DISABLE_INT_FALL_IRQ();
 
-		/* 3: DHT - send out response signal, low for 80us */
+		/* 5: DHT - send out response signal, low for 80us */
 		DHT_ENABLE_INT_RISE_IRQ();
 
 		state = RESPONSE_WAITING2;
@@ -163,7 +198,7 @@ handle_state_updates(void)
 	case RESPONSE_RECEIVED2:
 		DHT_DISABLE_INT_RISE_IRQ();
 
-		/* 4: DHT - pulls up for 80us */
+		/* 6: DHT - pulls up for 80us */
 		DHT_ENABLE_INT_FALL_IRQ();
 
 		state = RESPONSE_WAITING3;
@@ -179,6 +214,7 @@ handle_state_updates(void)
 		break;
 
 	case READ_WAIT:
+		/* 7: DHT - start to transmit 1-bit data (50us) */
 		DHT_ENABLE_INT_RISE_IRQ();
 
 		state = READ_WAITING;
@@ -190,6 +226,7 @@ handle_state_updates(void)
 	case READ_RECEIVE:
 		DHT_DISABLE_INT_RISE_IRQ();
 
+		/* 8: DHT - pull up, 26-28us means 0, 70us means 1 */
 		DHT_ENABLE_INT_FALL_IRQ();
 		DHT_TCNT = 0;
 		DHT_START_TIMER_US();
@@ -216,7 +253,7 @@ handle_state_updates(void)
 			b = &cksum;
 
 		*b <<= 1;
-		 /* 2: DHT - pull up, 26-28us means 0, 70us means 1 */
+		/* 26-28us means 0, 70us means 1 */
 		if (DHT_TCNT >= DHT_TICKS_PER_US * 50)
 			*b |= (0x01);
 
@@ -238,10 +275,6 @@ handle_state_updates(void)
 
 		state = RECOVER;
 		break;
-
-	default:
-		/* TODO muss weg */
-		break;
 	}
 
 	return (state);
@@ -249,11 +282,11 @@ handle_state_updates(void)
 
 
 
-int8_t
+void
 DHT_read(struct DHT_data *data)
 {
 	if (state != IDLE)
-		return (-1);
+		return;
 
 	data->humidity_integral = 0;
 	data->humidity_decimal = 0;
@@ -264,13 +297,29 @@ DHT_read(struct DHT_data *data)
 	read_bits = 0;
 
 	dht_data = data;
-
 	state = START_SEND;
 
-	while (handle_state_updates() != IDLE)
-		/* nop */;
+	handle_state_updates();
+}
 
-	return (dht_data->valid_reading);
+enum DHT_states
+DHT_get_state()
+{
+	enum states s;
+
+	switch (handle_state_updates()) {
+	case UNINITIALIZED:
+		s = DHT_UNINITIALIZED;
+		break;
+	case IDLE:
+		s = DHT_IDLE;
+		break;
+	default:
+		s = DHT_BUSY;
+		break;
+	}
+
+	return (s);
 }
 
 ISR(DHT_ISR_OCR_VECTOR)
