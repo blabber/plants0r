@@ -27,18 +27,11 @@ main(void)
 	DHT_init();
 	UA_init();
 
-	while (DHT_get_state() != DHT_IDLE)
-		/* nop */;
-
 	struct DHT_data dht;
 	char buffer[BUFFLEN];
 
 	for (;;) {
 		DHT_read(&dht);
-
-		while (DHT_get_state() != DHT_IDLE)
-			/* nop */;
-
 		if (dht.valid_reading)
 			PORTB &= ~(LED);
 		else {

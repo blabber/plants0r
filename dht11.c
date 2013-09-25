@@ -110,6 +110,9 @@ DHT_init(void)
 	if (state != UNINITIALIZED)
 		return;
 	state = INITIALIZE;
+
+	while (handle_state_updates() != IDLE)
+		/* nop */;
 }
 
 static enum states
@@ -359,27 +362,8 @@ DHT_read(struct DHT_data *data)
 	dht_data = data;
 	state = START_SEND;
 
-	handle_state_updates();
-}
-
-enum DHT_states
-DHT_get_state()
-{
-	enum states s;
-
-	switch (handle_state_updates()) {
-	case UNINITIALIZED:
-		s = DHT_UNINITIALIZED;
-		break;
-	case IDLE:
-		s = DHT_IDLE;
-		break;
-	default:
-		s = DHT_BUSY;
-		break;
-	}
-
-	return (s);
+	while (handle_state_updates() != IDLE)
+		/* nop */;
 }
 
 ISR(DHT_ISR_OCR_VECTOR)

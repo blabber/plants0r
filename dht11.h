@@ -76,6 +76,5 @@ struct DHT_data {
 
 void DHT_init(void);
 void DHT_read(struct DHT_data *data);
-enum DHT_states DHT_get_state(void);
 
 #endif
