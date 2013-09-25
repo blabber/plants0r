@@ -31,26 +31,26 @@ main(void)
 		/* nop */;
 
 	struct DHT_data dht;
+	char buffer[BUFFLEN];
 
-	DHT_read(&dht);
 	for (;;) {
-		if (DHT_get_state() == DHT_IDLE) {
-			if (dht.valid_reading)
-				PORTB &= ~(LED);
-			else {
-				PORTB |= LED;
-				UA_puts("failed reading: ");
-			}
+		DHT_read(&dht);
 
-			char buffer[BUFFLEN];
-			snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
-			    dht.humidity_integral, dht.humidity_decimal,
-			    dht.temperature_integral, dht.temperature_decimal);
+		while (DHT_get_state() != DHT_IDLE)
+			/* nop */;
 
-			UA_puts(buffer);
-
-			DHT_read(&dht);
+		if (dht.valid_reading)
+			PORTB &= ~(LED);
+		else {
+			PORTB |= LED;
+			UA_puts("failed reading: ");
 		}
+
+		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
+		    dht.humidity_integral, dht.humidity_decimal,
+		    dht.temperature_integral, dht.temperature_decimal);
+
+		UA_puts(buffer);
 	}
 
 	/* NOTREACHED */
