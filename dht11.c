@@ -93,6 +93,7 @@ enum states {
 	RECOVER,
 	RECOVERING,
 	RECOVERED,
+	TIMEOUT,
 };
 
 static enum states handle_state_updates(void);
@@ -177,6 +178,12 @@ handle_state_updates(void)
 		DHT_DDR &= ~(DHT); /* external pull-up-resistor keeps line up */
 		DHT_ENABLE_INT_FALL_IRQ();
 
+		/* Watchdog */
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_US * 50;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_US();
+
 		state = RESPONSE_WAITING1;
 		break;
 
@@ -185,9 +192,17 @@ handle_state_updates(void)
 
 	case RESPONSE_RECEIVED1:
 		DHT_DISABLE_INT_FALL_IRQ();
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_US();
 
 		/* 5: DHT - send out response signal, low for 80us */
 		DHT_ENABLE_INT_RISE_IRQ();
+
+		/* Watchdog */
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_US * 90;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_US();
 
 		state = RESPONSE_WAITING2;
 		break;
@@ -197,9 +212,17 @@ handle_state_updates(void)
 
 	case RESPONSE_RECEIVED2:
 		DHT_DISABLE_INT_RISE_IRQ();
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_US();
 
 		/* 6: DHT - pulls up for 80us */
 		DHT_ENABLE_INT_FALL_IRQ();
+
+		/* Watchdog */
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_US * 90;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_US();
 
 		state = RESPONSE_WAITING3;
 		break;
@@ -209,6 +232,8 @@ handle_state_updates(void)
 
 	case RESPONSE_RECEIVED3:
 		DHT_DISABLE_INT_FALL_IRQ();
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_US();
 
 		state = READ_WAIT;
 		break;
@@ -216,6 +241,12 @@ handle_state_updates(void)
 	case READ_WAIT:
 		/* 7: DHT - start to transmit 1-bit data (50us) */
 		DHT_ENABLE_INT_RISE_IRQ();
+
+		/* Watchdog */
+		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_US * 60;
+		DHT_ENABLE_OCR_IRQ();
+		DHT_START_TIMER_US();
 
 		state = READ_WAITING;
 		break;
@@ -225,10 +256,19 @@ handle_state_updates(void)
 
 	case READ_RECEIVE:
 		DHT_DISABLE_INT_RISE_IRQ();
+		DHT_DISABLE_OCR_IRQ();
+		DHT_STOP_TIMER_US();
 
 		/* 8: DHT - pull up, 26-28us means 0, 70us means 1 */
 		DHT_ENABLE_INT_FALL_IRQ();
+
+		/*
+		 * The following timer is not only a watchdog, but is also used
+		 * to measure the time until the next falling edge occurs.
+		 */
 		DHT_TCNT = 0;
+		DHT_OCR = DHT_TICKS_PER_US * 80;
+		DHT_ENABLE_OCR_IRQ();
 		DHT_START_TIMER_US();
 
 		state = READ_RECEIVING;
@@ -240,6 +280,7 @@ handle_state_updates(void)
 	case READ_RECEIVED:
 		DHT_STOP_TIMER_US();
 		DHT_DISABLE_INT_FALL_IRQ();
+		DHT_DISABLE_OCR_IRQ();
 
 		if (read_bits < 8)
 			b = &(dht_data->humidity_integral);
@@ -275,6 +316,24 @@ handle_state_updates(void)
 
 		state = RECOVER;
 		break;
+	case TIMEOUT:
+		/*
+		 * We don't know where the timeout occured. So just stop all
+		 * timers and disable all interrupts, to leave this stuff in a
+		 * consistent state.
+		 */
+		DHT_STOP_TIMER_SEC();
+		DHT_STOP_TIMER_MS();
+		DHT_STOP_TIMER_US();
+		DHT_DISABLE_OCR_IRQ();
+		DHT_DISABLE_INT_RISE_IRQ();
+		DHT_DISABLE_INT_FALL_IRQ();
+
+		dht_data->valid_reading = 0;
+		dht_data->timeout = 1;
+
+		state = IDLE;
+		break;
 	}
 
 	return (state);
@@ -293,6 +352,7 @@ DHT_read(struct DHT_data *data)
 	data->temperature_integral = 0;
 	data->temperature_decimal = 0;
 	data->valid_reading = 0;
+	data->timeout = 0;
 	cksum = 0;
 	read_bits = 0;
 
@@ -333,6 +393,13 @@ ISR(DHT_ISR_OCR_VECTOR)
 		break;
 	case START_SENDING:
 		state = START_SENT;
+		break;
+	case RESPONSE_WAITING1:
+	case RESPONSE_WAITING2:
+	case RESPONSE_WAITING3:
+	case READ_WAITING:
+	case READ_RECEIVING:
+		state = TIMEOUT;
 		break;
 	default:
 		break;

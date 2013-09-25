@@ -43,7 +43,10 @@ main(void)
 			PORTB &= ~(LED);
 		else {
 			PORTB |= LED;
-			UA_puts("failed reading: ");
+			if (dht.timeout)
+				UA_puts("Timeout: ");
+			else
+				UA_puts("failed reading: ");
 		}
 
 		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",

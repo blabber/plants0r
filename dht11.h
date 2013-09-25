@@ -71,6 +71,7 @@ struct DHT_data {
 	uint8_t temperature_integral;
 	uint8_t temperature_decimal;
 	uint8_t valid_reading;
+	uint8_t timeout;
 };
 
 void DHT_init(void);
