@@ -332,7 +332,7 @@ handle_state_updates(void)
 		dht_data->valid_reading = 0;
 		dht_data->timeout = 1;
 
-		state = IDLE;
+		state = RECOVER;
 		break;
 	}
 
