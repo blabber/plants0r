@@ -110,9 +110,6 @@ DHT_init(void)
 	if (state != UNINITIALIZED)
 		return;
 	state = INITIALIZE;
-
-	while (handle_state_updates() != IDLE)
-		/* nop */;
 }
 
 static enum states
@@ -342,14 +339,9 @@ handle_state_updates(void)
 	return (state);
 }
 
-
-
 void
 DHT_read(struct DHT_data *data)
 {
-	if (state != IDLE)
-		return;
-
 	data->humidity_integral = 0;
 	data->humidity_decimal = 0;
 	data->temperature_integral = 0;
@@ -359,11 +351,27 @@ DHT_read(struct DHT_data *data)
 	cksum = 0;
 	read_bits = 0;
 
-	dht_data = data;
-	state = START_SEND;
+	if (state == UNINITIALIZED)
+		return;
 
 	while (handle_state_updates() != IDLE)
 		/* nop */;
+
+	dht_data = data;
+	state = START_SEND;
+
+	uint8_t loop = 1;
+	do {
+		switch (handle_state_updates()) {
+		case RECOVERING:
+		case IDLE:
+		case TIMEOUT:
+			loop = 0;
+			break;
+		default:
+			break;
+		}
+	} while (loop);
 }
 
 ISR(DHT_ISR_OCR_VECTOR)
