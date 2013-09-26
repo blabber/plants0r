@@ -23,6 +23,7 @@
 						UBRR0H = UBRRH_VALUE;   \
 						UBRR0L = UBRRL_VALUE;   \
 					} while (0)
+#define UA_TX_BUFF_READY_VECTOR		USART_UDRE_vect
 
 
 

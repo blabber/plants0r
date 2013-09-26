@@ -50,7 +50,7 @@ UA_puts(char *s)
 		UA_putc(*(l++));
 }
 
-ISR(USART_UDRE_vect)
+ISR(UA_TX_BUFF_READY_VECTOR)
 {
 	uint8_t c;
 	if (buf_getc(buff, &c) == 0)
