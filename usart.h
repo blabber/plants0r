@@ -25,8 +25,6 @@
 					} while (0)
 #define UA_TX_BUFF_READY_VECTOR		USART_UDRE_vect
 
-
-
 void UA_init(void);
 void UA_putc(uint8_t c);
 void UA_puts(char *s);

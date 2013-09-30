@@ -12,10 +12,13 @@
 
 #include "usart.h"
 #include "dht11.h"
+#include "adc.h"
 
-#define BUFFLEN 32
+#define BUFFLEN 48
 
 #define LED (1<<PB5)
+#define LDR (0x00)
+#define MST (0x01)
 
 int
 main(void)
@@ -26,6 +29,7 @@ main(void)
 
 	DHT_init();
 	UA_init();
+	ADC_init();
 
 	struct DHT_data dht;
 	char buffer[BUFFLEN];
@@ -37,14 +41,18 @@ main(void)
 		else {
 			PORTB |= LED;
 			if (dht.timeout)
-				UA_puts("Timeout: ");
+				UA_puts("timeout: ");
 			else
 				UA_puts("failed reading: ");
 		}
 
-		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC\r\n",
-		    dht.humidity_integral, dht.humidity_decimal,
-		    dht.temperature_integral, dht.temperature_decimal);
+		uint16_t ldr = ADC_read(LDR);
+		uint16_t moisture = ADC_read(MST);
+
+		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC ldr: %d moisture: "
+		    "%d\r\n", dht.humidity_integral, dht.humidity_decimal,
+		    dht.temperature_integral, dht.temperature_decimal, ldr,
+		    moisture);
 
 		UA_puts(buffer);
 	}
