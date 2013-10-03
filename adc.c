@@ -60,7 +60,7 @@ ADC_read(uint8_t channel)
 ISR(ADC_ISR_ADC_VECTOR) {
 	/*
 	 * Ideally the interrupt itself exits sleep mode and no state variable
-	 * would be necessary, but offer interrupts might exit sleep mode too.
+	 * would be necessary, but other interrupts might exit sleep mode too.
 	 * In this case, fall back to state variable.
 	 */
 	adc_finished = 1;
