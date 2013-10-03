@@ -38,23 +38,36 @@ main(void)
 		DHT_read(&dht);
 		if (dht.valid_reading)
 			PORTB &= ~(LED);
-		else {
+		else
 			PORTB |= LED;
-			if (dht.timeout)
-				UA_puts("timeout: ");
-			else
-				UA_puts("failed reading: ");
-		}
 
 		uint16_t ldr = ADC_read(LDR);
 		uint16_t moisture = ADC_read(MST);
 
-		snprintf(buffer, BUFFLEN, "%d.%d%% %d.%ddegC ldr: %d moisture: "
-		    "%d\r\n", dht.humidity_integral, dht.humidity_decimal,
-		    dht.temperature_integral, dht.temperature_decimal, ldr,
-		    moisture);
+		UA_puts("BEGIN\r\n");
 
+		snprintf(buffer, BUFFLEN, "L:%d\r\n", ldr);
 		UA_puts(buffer);
+
+		snprintf(buffer, BUFFLEN, "M:%d\r\n", moisture);
+		UA_puts(buffer);
+
+		if (dht.valid_reading) {
+			snprintf(buffer, BUFFLEN, "T:%d.%d\r\n",
+			    dht.temperature_integral, dht.temperature_decimal);
+			UA_puts(buffer);
+
+			snprintf(buffer, BUFFLEN, "H:%d.%d\r\n",
+			    dht.humidity_integral, dht.humidity_decimal);
+			UA_puts(buffer);
+		} else {
+			if (dht.timeout)
+				UA_puts("D:timeout\r\n");
+			else
+				UA_puts("D:failed\r\n");
+		}
+
+		UA_puts("END\r\n");
 	}
 
 	/* NOTREACHED */
