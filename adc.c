@@ -22,7 +22,6 @@ ADC_init(void)
 	ADC_SET_REFERENCE();
 	ADC_SET_PRESCALER();
 	ADC_ENABLE();
-	uint16_t dummy = ADC_VALUE;
 }
 
 uint16_t
