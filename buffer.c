@@ -69,3 +69,13 @@ buf_getc(struct buffer *b, uint8_t *c)
 
 	return (0);
 }
+
+int8_t
+buf_is_full(struct buffer *b)
+{
+	uint8_t twp = (b->writepos + 1) % b->size;
+	if (twp == b->readpos)
+		return (1);
+
+	return (0);
+}

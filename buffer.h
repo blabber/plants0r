@@ -16,5 +16,6 @@ struct buffer;
 struct buffer *buf_create(uint8_t size);
 int8_t buf_putc(struct buffer *b, uint8_t c);
 int8_t buf_getc(struct buffer *b, uint8_t *c);
+int8_t buf_is_full(struct buffer *b);
 
 #endif

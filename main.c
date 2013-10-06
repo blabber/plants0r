@@ -7,6 +7,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
@@ -14,7 +15,7 @@
 #include "dht11.h"
 #include "adc.h"
 
-#define BUFFLEN 48
+#define BUFFLEN 16
 
 #define LED (1<<PB5)
 #define LDR (0x00)
@@ -68,6 +69,15 @@ main(void)
 		}
 
 		UA_puts("END\r\n");
+
+		for (;;) {
+			while (UA_RX_done == 0)
+				/* nop */;
+
+			UA_gets(buffer, BUFFLEN);
+			if (strncmp(buffer, "read", strlen("read")) == 0)
+				break;
+		}
 	}
 
 	/* NOTREACHED */

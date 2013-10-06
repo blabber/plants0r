@@ -19,14 +19,20 @@
 #define UA_ENABLE_TX( )			(UCSR0B |= (1<<TXEN0))
 #define UA_ENABLE_TX_BUFF_READY_IRQ( )	(UCSR0B |= (1<<UDRIE0))
 #define UA_DISABLE_TX_BUFF_READY_IRQ( )	(UCSR0B &= ~(1<<UDRIE0))
+#define UA_TX_BUFF_READY_VECTOR		USART_UDRE_vect
+#define UA_ENABLE_RX( )			(UCSR0B |= (1<<RXEN0))
+#define UA_ENABLE_RX_COMPLETE_IRQ( )	(UCSR0B |= (1<<RXCIE0))
+#define UA_RX_COMPLETE_VECTOR		USART_RX_vect
 #define UA_SET_BAUD_RATE( )		do {                            \
 						UBRR0H = UBRRH_VALUE;   \
 						UBRR0L = UBRRL_VALUE;   \
 					} while (0)
-#define UA_TX_BUFF_READY_VECTOR		USART_UDRE_vect
+
+extern volatile uint8_t UA_RX_done;
 
 void UA_init(void);
 void UA_putc(uint8_t c);
 void UA_puts(char *s);
+uint8_t UA_gets(char *buffer, uint8_t bufflen);
 
 #endif
