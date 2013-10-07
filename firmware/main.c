@@ -85,7 +85,7 @@ main(void)
 			ADC_ENABLE();
 
 			UA_gets(buffer, BUFFLEN);
-			if (strncmp(buffer, "read", strlen("read")) == 0)
+			if (strncmp(buffer, "read", BUFFLEN) == 0)
 				break;
 		}
 	}
