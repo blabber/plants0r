@@ -33,6 +33,8 @@ main(void)
 	UA_init();
 	ADC_init();
 
+	PRR |= (1<<PRTWI) | (1<<PRTIM2) | (1<<PRTIM0) | (1<<PRSPI);
+
 	struct DHT_data dht;
 	char buffer[BUFFLEN];
 
@@ -73,10 +75,14 @@ main(void)
 
 		DHT_wait();
 		for (;;) {
+			ADC_DISABLE();
+			PRR |= (1<<PRTIM1) | (1<<PRADC);
 			while (UA_RX_done == 0) {
 				set_sleep_mode(SLEEP_MODE_IDLE);
 				sleep_mode();
 			}
+			PRR &= ~((1<<PRTIM1) | (1<<PRADC));
+			ADC_ENABLE();
 
 			UA_gets(buffer, BUFFLEN);
 			if (strncmp(buffer, "read", strlen("read")) == 0)

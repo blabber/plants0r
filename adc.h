@@ -16,6 +16,7 @@
 #define ADC_RESET_CHANNEL()	(ADMUX &= ~(0x0F))
 #define ADC_SET_CHANNEL(C)	(ADMUX |= (C))
 #define ADC_ENABLE( )		(ADCSRA |= (1<<ADEN))
+#define ADC_DISABLE( )		(ADCSRA &= ~(1<<ADEN))
 #define ADC_START( )		(ADCSRA |= (1<<ADSC))
 #define ADC_CONVERSION_RUNNING	(ADCSRA & (1<<ADSC))
 #define ADC_SET_PRESCALER()	(ADCSRA |= (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0))
