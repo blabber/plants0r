@@ -373,6 +373,13 @@ DHT_read(struct DHT_data *data)
 	} while (loop);
 }
 
+void
+DHT_wait()
+{
+	while (handle_state_updates() != IDLE)
+		/* nop */;
+}
+
 ISR(DHT_ISR_OCR_VECTOR)
 {
 	switch (state) {

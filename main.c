@@ -10,6 +10,7 @@
 #include <string.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 
 #include "usart.h"
 #include "dht11.h"
@@ -70,9 +71,12 @@ main(void)
 
 		UA_puts("END\r\n");
 
+		DHT_wait();
 		for (;;) {
-			while (UA_RX_done == 0)
-				/* nop */;
+			while (UA_RX_done == 0) {
+				set_sleep_mode(SLEEP_MODE_IDLE);
+				sleep_mode();
+			}
 
 			UA_gets(buffer, BUFFLEN);
 			if (strncmp(buffer, "read", strlen("read")) == 0)
